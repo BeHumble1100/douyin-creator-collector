@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V4.3
+// @name         抖店达人采集助手 V4.4
 // @namespace    douyin-daren-helper
-// @version      4.3
+// @version      4.4
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
 // @match        https://buyin.jinritemai.com/*
 // @match        https://*.jinritemai.com/*
 // @grant        GM_setClipboard
+// @run-at       document-idle
 // ==/UserScript==
 
 (function () {
@@ -1550,11 +1551,35 @@ ${missing.join('、')}
         panel.innerHTML = `
 
 <div style="
-    font-weight:700;
-    font-size:15px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
     margin-bottom:7px;
 ">
-达人采集助手 V4.3
+    <div style="
+        font-weight:700;
+        font-size:15px;
+    ">
+        达人采集助手 V4.4
+    </div>
+
+    <button
+        id="daren-helper-collapse"
+        title="收起"
+        style="
+            width:auto;
+            padding:2px 7px;
+            margin:0;
+            border:1px solid #ddd;
+            border-radius:5px;
+            background:#fff;
+            cursor:pointer;
+            font-size:12px;
+        "
+    >
+        收起
+    </button>
 </div>
 
 <div
@@ -1718,6 +1743,15 @@ ${missing.join('、')}
         ).onclick =
             clearRecords;
 
+        document.querySelector(
+            '#daren-helper-collapse'
+        ).onclick = () => {
+
+            panel.remove();
+
+            createLauncher();
+        };
+
         updatePanel();
         renderCurrentResult();
     }
@@ -1733,129 +1767,12 @@ ${missing.join('、')}
     // 抖店是 SPA，因此还要监听页面 DOM 变化。
     // =========================================================
 
-    let lastDetailSeenAt = 0;
-    let forceShowPanel = false;
-
-
-    function getDetailSignals() {
-
-        const bodyText =
-            document.body?.innerText || '';
-
-        const url =
-            (
-                location.pathname +
-                location.search +
-                location.hash
-            ).toLowerCase();
-
-        return {
-
-            // 已确认的强特征
-            qr:
-                !!document.querySelector(
-                    '.dp__icon-qrcode'
-                ),
-
-            level:
-                !!document.querySelector(
-                    'img[data-author-level]'
-                ),
-
-            douyinHome:
-                bodyText.includes(
-                    '达人抖音主页'
-                ),
-
-            // 详情页常见 Tab
-            salesTab:
-                bodyText.includes(
-                    '带货分析'
-                ),
-
-            fansTab:
-                bodyText.includes(
-                    '粉丝分析'
-                ),
-
-            sceneTab:
-                bodyText.includes(
-                    '场景分析'
-                ),
-
-            reviewTab:
-                bodyText.includes(
-                    '评价详情'
-                ),
-
-            // 详情页上一般会有粉丝信息
-            followers:
-                /(?:\d+(?:\.\d+)?)(?:万|w)?\s*粉丝/i
-                    .test(bodyText),
-
-            // URL 兜底：只要路径里像达人 / author / creator / talent / kol
-            urlLooksLikeCreator:
-                /author|creator|talent|daren|kol|达人/i
-                    .test(url)
-        };
-    }
-
-
-    function isDarenDetailPage() {
-
-        const s =
-            getDetailSignals();
-
-        /*
-         * V4.3 原则：
-         * 宁可误显示，也不能漏掉真正的达人详情页。
-         *
-         * 任意一个“详情页特征”命中，就视为详情页。
-         */
-        const isDetail =
-            (
-                s.qr ||
-                s.level ||
-                s.douyinHome ||
-                s.salesTab ||
-                s.fansTab ||
-                s.sceneTab ||
-                s.reviewTab ||
-                s.followers ||
-                s.urlLooksLikeCreator
-            );
-
-        if (isDetail) {
-            lastDetailSeenAt =
-                Date.now();
-        }
-
-        return isDetail;
-    }
-
-
-    function shouldKeepPanelTemporarily() {
-
-        // React / SPA 重渲染时给 5 秒宽限
-        return (
-            Date.now() -
-            lastDetailSeenAt
-        ) < 5000;
-    }
-
-
-    function removeLauncher() {
-
-        const launcher =
-            document.querySelector(
-                '#daren-helper-launcher'
-            );
-
-        if (launcher) {
-            launcher.remove();
-        }
-    }
-
+    // =========================================================
+    // 12. V4.4 启动逻辑
+    //
+    // 不再判断是不是达人详情页。
+    // 原则：可用性优先，只要脚本成功注入，就必须有入口。
+    // =========================================================
 
     function createLauncher() {
 
@@ -1887,29 +1804,22 @@ ${missing.join('、')}
                 position: 'fixed',
                 right: '18px',
                 bottom: '18px',
-                zIndex: '99999998',
-                padding: '7px 10px',
-                border: '1px solid #ddd',
+                zIndex: '2147483647',
+                padding: '8px 12px',
+                border: '1px solid #bbb',
                 borderRadius: '18px',
                 background: '#fff',
-                boxShadow: '0 3px 12px rgba(0,0,0,.14)',
+                boxShadow: '0 3px 14px rgba(0,0,0,.18)',
                 fontSize: '12px',
-                cursor: 'pointer',
-                opacity: '.78'
+                cursor: 'pointer'
             }
         );
 
         launcher.onclick = () => {
 
-            forceShowPanel = true;
-
             launcher.remove();
 
             createPanel();
-
-            setStatus(
-                '已手动强制显示'
-            );
         };
 
         document.body.appendChild(
@@ -1918,106 +1828,91 @@ ${missing.join('、')}
     }
 
 
-    function syncPanel() {
+    function safeInit() {
 
-        const panel =
-            document.querySelector(
-                '#daren-helper-panel'
+        if (!document.body) {
+
+            setTimeout(
+                safeInit,
+                200
             );
-
-        const detailNow =
-            isDarenDetailPage();
-
-        if (
-            forceShowPanel ||
-            detailNow ||
-            (
-                panel &&
-                shouldKeepPanelTemporarily()
-            )
-        ) {
-
-            removeLauncher();
-
-            if (!panel) {
-                createPanel();
-            }
 
             return;
         }
 
-        if (panel) {
-            panel.remove();
-        }
-
-        const modal =
-            document.querySelector(
-                '#daren-records-modal'
-            );
-
-        if (modal) {
-            modal.remove();
-        }
+        console.log(
+            '[达人助手] V4.4 已加载：',
+            location.href
+        );
 
         /*
-         * 自动判断没有命中时，不让脚本“彻底消失”。
-         * 仅显示一个很小的兜底按钮。
+         * 默认直接显示完整面板。
+         * 不做任何页面类型判断。
          */
-        createLauncher();
+        if (
+            !document.querySelector(
+                '#daren-helper-panel'
+            ) &&
+            !document.querySelector(
+                '#daren-helper-launcher'
+            )
+        ) {
+            createPanel();
+        }
     }
 
 
-    // 首次加载多次检查，兼容慢渲染
-    setTimeout(
-        syncPanel,
-        300
-    );
+    // document-idle 下通常 body 已存在；
+    // 这里再做一次保险。
+    if (
+        document.readyState ===
+        'loading'
+    ) {
 
-    setTimeout(
-        syncPanel,
-        800
-    );
+        document.addEventListener(
+            'DOMContentLoaded',
+            safeInit,
+            {
+                once: true
+            }
+        );
 
-    setTimeout(
-        syncPanel,
-        1500
-    );
+    } else {
 
-    setTimeout(
-        syncPanel,
-        3000
-    );
-
-
-    // SPA 页面切换时自动检查
-    const observer =
-        new MutationObserver(() => {
-
-            clearTimeout(
-                window.__darenHelperSyncTimer
-            );
-
-            window.__darenHelperSyncTimer =
-                setTimeout(
-                    syncPanel,
-                    150
-                );
-        });
+        safeInit();
+    }
 
 
-    observer.observe(
-        document.body,
-        {
-            childList: true,
-            subtree: true
-        }
-    );
-
-
-    // 每秒兜底一次
+    /*
+     * 低频自愈：
+     * 如果站点重渲染误删了面板/按钮，
+     * 2 秒内自动恢复一个入口。
+     */
     setInterval(
-        syncPanel,
-        1000
+        () => {
+
+            if (!document.body) {
+                return;
+            }
+
+            const hasPanel =
+                !!document.querySelector(
+                    '#daren-helper-panel'
+                );
+
+            const hasLauncher =
+                !!document.querySelector(
+                    '#daren-helper-launcher'
+                );
+
+            if (
+                !hasPanel &&
+                !hasLauncher
+            ) {
+                createLauncher();
+            }
+        },
+        2000
     );
 
 
