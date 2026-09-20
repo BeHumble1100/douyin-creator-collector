@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V6 Final
+// @name         抖店达人采集助手 V7
 // @namespace    douyin-daren-helper
-// @version      6.1
-// @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
+// @version      7.0
+// @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
 // @match        *://buyin.jinritemai.com/*
 // @match        *://*.jinritemai.com/*
 // @include      *://buyin.jinritemai.com/*
@@ -14,10 +14,13 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V6 Final] 脚本开始执行');
+    console.log('[达人助手 V7] 脚本开始执行');
 
-    const STORAGE_KEY = 'daren_collector_v6_final';
+    const STORAGE_KEY = 'daren_collector_v7';
+    const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
+    const LAUNCHER_POSITION_KEY = 'daren_helper_launcher_position_v7';
     const OLD_STORAGE_KEYS = [
+        'daren_collector_v6_final',
         'daren_collector_v6',
         'daren_collector_v5',
         'daren_collector_v4_1',
@@ -187,6 +190,272 @@
                 },
                 duration
             );
+    }
+
+
+
+    // =========================================================
+    // 位置 / 拖动
+    // =========================================================
+
+    function readSavedPosition(key) {
+        try {
+            const value =
+                JSON.parse(
+                    localStorage.getItem(key)
+                );
+
+            if (
+                value &&
+                Number.isFinite(value.left) &&
+                Number.isFinite(value.top)
+            ) {
+                return value;
+            }
+        } catch {}
+
+        return null;
+    }
+
+
+    function savePosition(
+        key,
+        left,
+        top
+    ) {
+        localStorage.setItem(
+            key,
+            JSON.stringify({
+                left,
+                top
+            })
+        );
+    }
+
+
+    function clampPosition(
+        element,
+        left,
+        top
+    ) {
+        const maxLeft =
+            Math.max(
+                0,
+                window.innerWidth -
+                element.offsetWidth
+            );
+
+        const maxTop =
+            Math.max(
+                0,
+                window.innerHeight -
+                element.offsetHeight
+            );
+
+        return {
+            left:
+                Math.max(
+                    0,
+                    Math.min(
+                        left,
+                        maxLeft
+                    )
+                ),
+
+            top:
+                Math.max(
+                    0,
+                    Math.min(
+                        top,
+                        maxTop
+                    )
+                )
+        };
+    }
+
+
+    function restorePosition(
+        element,
+        key
+    ) {
+        const saved =
+            readSavedPosition(key);
+
+        if (!saved) {
+            return false;
+        }
+
+        const pos =
+            clampPosition(
+                element,
+                saved.left,
+                saved.top
+            );
+
+        element.style.left =
+            `${pos.left}px`;
+
+        element.style.top =
+            `${pos.top}px`;
+
+        element.style.right =
+            'auto';
+
+        element.style.bottom =
+            'auto';
+
+        return true;
+    }
+
+
+    function makeDraggable({
+        element,
+        handle,
+        storageKey,
+        onClick,
+        ignoreSelector
+    }) {
+        let dragging = false;
+        let moved = false;
+        let startX = 0;
+        let startY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+
+        handle.style.touchAction =
+            'none';
+
+        handle.style.userSelect =
+            'none';
+
+        handle.addEventListener(
+            'pointerdown',
+            event => {
+                if (
+                    ignoreSelector &&
+                    event.target.closest(
+                        ignoreSelector
+                    )
+                ) {
+                    return;
+                }
+
+                dragging = true;
+                moved = false;
+
+                const rect =
+                    element.getBoundingClientRect();
+
+                startX =
+                    event.clientX;
+
+                startY =
+                    event.clientY;
+
+                startLeft =
+                    rect.left;
+
+                startTop =
+                    rect.top;
+
+                element.style.left =
+                    `${startLeft}px`;
+
+                element.style.top =
+                    `${startTop}px`;
+
+                element.style.right =
+                    'auto';
+
+                element.style.bottom =
+                    'auto';
+
+                handle.style.cursor =
+                    'grabbing';
+
+                try {
+                    handle.setPointerCapture(
+                        event.pointerId
+                    );
+                } catch {}
+
+                event.preventDefault();
+            }
+        );
+
+        handle.addEventListener(
+            'pointermove',
+            event => {
+                if (!dragging) {
+                    return;
+                }
+
+                const dx =
+                    event.clientX -
+                    startX;
+
+                const dy =
+                    event.clientY -
+                    startY;
+
+                if (
+                    Math.abs(dx) > 3 ||
+                    Math.abs(dy) > 3
+                ) {
+                    moved = true;
+                }
+
+                const pos =
+                    clampPosition(
+                        element,
+                        startLeft + dx,
+                        startTop + dy
+                    );
+
+                element.style.left =
+                    `${pos.left}px`;
+
+                element.style.top =
+                    `${pos.top}px`;
+            }
+        );
+
+        handle.addEventListener(
+            'pointerup',
+            event => {
+                if (!dragging) {
+                    return;
+                }
+
+                dragging = false;
+
+                handle.style.cursor =
+                    'grab';
+
+                try {
+                    handle.releasePointerCapture(
+                        event.pointerId
+                    );
+                } catch {}
+
+                const rect =
+                    element.getBoundingClientRect();
+
+                savePosition(
+                    storageKey,
+                    rect.left,
+                    rect.top
+                );
+
+                if (
+                    !moved &&
+                    typeof onClick ===
+                    'function'
+                ) {
+                    onClick();
+                }
+            }
+        );
     }
 
 
@@ -890,10 +1159,6 @@
             );
 
         if (!label) {
-            console.log(
-                '[达人助手] 结算总额标签尚未出现'
-            );
-
             return '';
         }
 
@@ -903,10 +1168,6 @@
             );
 
         if (!card) {
-            console.log(
-                '[达人助手] 找到标签，但找不到结算总额卡片'
-            );
-
             return '';
         }
 
@@ -916,22 +1177,20 @@
             );
 
         if (!valueEl) {
-            console.log(
-                '[达人助手] 结算金额节点尚未出现'
-            );
-
             return '';
         }
 
-        const value =
+        let value =
             valueEl.textContent
                 ?.replace(/\s+/g, '')
                 .trim() || '';
 
-        console.log(
-            '[达人助手] 原始结算金额：',
-            value
-        );
+        if (
+            value.includes('达人未授权') ||
+            value === '未授权'
+        ) {
+            return '未授权';
+        }
 
         if (
             !value ||
@@ -941,6 +1200,12 @@
         ) {
             return '';
         }
+
+        value =
+            value.replace(
+                /[¥￥]/g,
+                ''
+            );
 
         if (!/\d/.test(value)) {
             return '';
@@ -1604,7 +1869,9 @@ ${missing.join('、')}
     }
 
 
-    function createLauncher() {
+    function createLauncher(
+        initialPosition = null
+    ) {
         if (
             !document.body ||
             document.querySelector(
@@ -1641,24 +1908,67 @@ ${missing.join('、')}
                 background: '#fff',
                 color: '#222',
                 boxShadow: '0 3px 14px rgba(0,0,0,.20)',
-                cursor: 'pointer',
-                fontSize: '13px'
+                cursor: 'grab',
+                fontSize: '13px',
+                userSelect: 'none'
             }
         );
-
-        button.onclick =
-            () => {
-                button.remove();
-                createPanel();
-            };
 
         document.body.appendChild(
             button
         );
+
+        if (initialPosition) {
+            const pos =
+                clampPosition(
+                    button,
+                    initialPosition.left,
+                    initialPosition.top
+                );
+
+            button.style.left =
+                `${pos.left}px`;
+
+            button.style.top =
+                `${pos.top}px`;
+
+            button.style.right =
+                'auto';
+
+            button.style.bottom =
+                'auto';
+        } else {
+            restorePosition(
+                button,
+                LAUNCHER_POSITION_KEY
+            );
+        }
+
+        makeDraggable({
+            element: button,
+            handle: button,
+            storageKey:
+                LAUNCHER_POSITION_KEY,
+
+            onClick:
+                () => {
+                    const rect =
+                        button.getBoundingClientRect();
+
+                    button.remove();
+
+                    createPanel({
+                        left: rect.left,
+                        top: rect.top
+                    });
+                }
+        });
     }
 
 
-    function createPanel() {
+    function createPanel(
+        initialPosition = null
+    ) {
         if (!document.body) {
             return;
         }
@@ -1684,18 +1994,23 @@ ${missing.join('、')}
             'daren-helper-panel';
 
         panel.innerHTML = `
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:center;
-                gap:8px;
-                margin-bottom:8px;
-            ">
+            <div
+                id="daren-helper-drag-handle"
+                style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:8px;
+                    margin-bottom:8px;
+                    cursor:grab;
+                    user-select:none;
+                "
+            >
                 <div style="
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V6 Final
+                    达人采集助手 V7
                 </div>
 
                 <button
@@ -1797,6 +2112,32 @@ ${missing.join('、')}
             panel
         );
 
+        if (initialPosition) {
+            const pos =
+                clampPosition(
+                    panel,
+                    initialPosition.left,
+                    initialPosition.top
+                );
+
+            panel.style.left =
+                `${pos.left}px`;
+
+            panel.style.top =
+                `${pos.top}px`;
+
+            panel.style.right =
+                'auto';
+
+            panel.style.bottom =
+                'auto';
+        } else {
+            restorePosition(
+                panel,
+                PANEL_POSITION_KEY
+            );
+        }
+
         panel
             .querySelectorAll(
                 'button'
@@ -1829,6 +2170,21 @@ ${missing.join('、')}
             }
         );
 
+        const dragHandle =
+            document.querySelector(
+                '#daren-helper-drag-handle'
+            );
+
+        makeDraggable({
+            element: panel,
+            handle: dragHandle,
+            storageKey:
+                PANEL_POSITION_KEY,
+            ignoreSelector:
+                'button'
+        });
+
+
         document.querySelector(
             '#daren-helper-collect'
         ).onclick =
@@ -1853,13 +2209,106 @@ ${missing.join('、')}
             '#daren-helper-collapse'
         ).onclick =
             () => {
+                const rect =
+                    panel.getBoundingClientRect();
+
+                savePosition(
+                    PANEL_POSITION_KEY,
+                    rect.left,
+                    rect.top
+                );
+
                 panel.remove();
-                createLauncher();
+
+                createLauncher({
+                    left: rect.left,
+                    top: rect.top
+                });
             };
 
         updateCount();
         renderCurrentResult();
     }
+
+
+    // =========================================================
+    // Resize 后保持控件在可视区域
+    // =========================================================
+
+    window.addEventListener(
+        'resize',
+        () => {
+            const panel =
+                document.querySelector(
+                    '#daren-helper-panel'
+                );
+
+            const launcher =
+                document.querySelector(
+                    '#daren-helper-launcher'
+                );
+
+            if (panel) {
+                const rect =
+                    panel.getBoundingClientRect();
+
+                const pos =
+                    clampPosition(
+                        panel,
+                        rect.left,
+                        rect.top
+                    );
+
+                panel.style.left =
+                    `${pos.left}px`;
+
+                panel.style.top =
+                    `${pos.top}px`;
+
+                panel.style.right =
+                    'auto';
+
+                panel.style.bottom =
+                    'auto';
+
+                savePosition(
+                    PANEL_POSITION_KEY,
+                    pos.left,
+                    pos.top
+                );
+            }
+
+            if (launcher) {
+                const rect =
+                    launcher.getBoundingClientRect();
+
+                const pos =
+                    clampPosition(
+                        launcher,
+                        rect.left,
+                        rect.top
+                    );
+
+                launcher.style.left =
+                    `${pos.left}px`;
+
+                launcher.style.top =
+                    `${pos.top}px`;
+
+                launcher.style.right =
+                    'auto';
+
+                launcher.style.bottom =
+                    'auto';
+
+                savePosition(
+                    LAUNCHER_POSITION_KEY,
+                    pos.left,
+                    pos.top
+                );
+            }
+        }
+    );
 
 
     // =========================================================
