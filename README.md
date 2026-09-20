@@ -101,7 +101,6 @@ douyin-creator-collector/
 ├── README.md
 ├── LICENSE
 ├── CHANGELOG.md
-├── PUBLISH_WITH_CODEX.md              # GitHub publishing notes / GitHub 发布说明
 └── .gitignore
 ```
 
