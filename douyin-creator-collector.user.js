@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7.2.1
+// @name         抖店达人采集助手 V7.3.1
 // @namespace    douyin-daren-helper
-// @version      7.2
+// @version      7.3
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
 // @match        *://buyin.jinritemai.com/*
 // @match        *://*.jinritemai.com/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7.2] 脚本开始执行');
+    console.log('[达人助手 V7.3] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
@@ -530,10 +530,33 @@
                 currentResult.settlement
             )}
 
-            ${row(
-                '主页链接',
-                currentResult.pageUrl
-            )}
+            <div style="
+                display:grid;
+                grid-template-columns:64px 1fr;
+                gap:6px;
+                margin-top:5px;
+                align-items:start;
+            ">
+                <span style="color:#888;">
+                    主页链接
+                </span>
+
+                <span>
+                    ${
+                        currentResult.pageUrl
+                            ? `<a
+                                   href="${escapeHtml(currentResult.pageUrl)}"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   style="
+                                       color:#1677ff;
+                                       text-decoration:none;
+                                   "
+                               >打开主页</a>`
+                            : '<span style="color:#999;">未识别</span>'
+                    }
+                </span>
+            </div>
         `;
     }
 
@@ -2032,7 +2055,7 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7.2
+                    达人采集助手 V7.3
                 </div>
 
                 <button
