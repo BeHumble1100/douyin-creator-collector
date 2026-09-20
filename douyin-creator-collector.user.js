@@ -38,12 +38,15 @@
 
     function getRecords() {
         try {
+            const raw =
+                localStorage.getItem(STORAGE_KEY);
+
             const current =
                 JSON.parse(
-                    localStorage.getItem(STORAGE_KEY)
+                    raw
                 ) || [];
 
-            if (Array.isArray(current) && localStorage.getItem(STORAGE_KEY) !== null) {
+            if (Array.isArray(current) && raw !== null) {
                 return current;
             }
 
@@ -284,11 +287,26 @@
             return false;
         }
 
+        applyPosition(
+            element,
+            saved.left,
+            saved.top
+        );
+
+        return true;
+    }
+
+
+    function applyPosition(
+        element,
+        left,
+        top
+    ) {
         const pos =
             clampPosition(
                 element,
-                saved.left,
-                saved.top
+                left,
+                top
             );
 
         element.style.left =
@@ -303,7 +321,7 @@
         element.style.bottom =
             'auto';
 
-        return true;
+        return pos;
     }
 
 
@@ -484,7 +502,8 @@
 
         const row = (
             label,
-            value
+            value,
+            isHtml = false
         ) => `
             <div style="
                 display:grid;
@@ -501,9 +520,13 @@
                     color:#222;
                     word-break:break-all;
                 ">
-                    ${escapeHtml(
-                        value || '未识别'
-                    )}
+                    ${
+                        isHtml
+                            ? value
+                            : escapeHtml(
+                                value || '未识别'
+                            )
+                    }
                 </span>
             </div>
         `;
@@ -529,33 +552,21 @@
                 currentResult.settlement
             )}
 
-            <div style="
-                display:grid;
-                grid-template-columns:64px 1fr;
-                gap:6px;
-                margin-top:5px;
-                align-items:start;
-            ">
-                <span style="color:#888;">
-                    主页链接
-                </span>
-
-                <span>
-                    ${
-                        currentResult.pageUrl
-                            ? `<a
-                                   href="${escapeHtml(currentResult.pageUrl)}"
-                                   target="_blank"
-                                   rel="noopener noreferrer"
-                                   style="
-                                       color:#1677ff;
-                                       text-decoration:none;
-                                   "
-                               >打开主页</a>`
-                            : '<span style="color:#999;">未识别</span>'
-                    }
-                </span>
-            </div>
+            ${row(
+                '主页链接',
+                currentResult.pageUrl
+                    ? `<a
+                           href="${escapeHtml(currentResult.pageUrl)}"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           style="
+                               color:#1677ff;
+                               text-decoration:none;
+                           "
+                       >打开主页</a>`
+                    : '<span style="color:#999;">未识别</span>',
+                true
+            )}
         `;
     }
 
@@ -1951,15 +1962,11 @@ ${missing.join('、')}
         document.body.appendChild(button);
 
         if (initialPosition) {
-            const pos = clampPosition(
+            applyPosition(
                 button,
                 initialPosition.left,
                 initialPosition.top
             );
-            button.style.left = `${pos.left}px`;
-            button.style.top = `${pos.top}px`;
-            button.style.right = 'auto';
-            button.style.bottom = 'auto';
         } else {
             restorePosition(button, LAUNCHER_POSITION_KEY);
         }
@@ -2115,24 +2122,11 @@ ${missing.join('、')}
         );
 
         if (initialPosition) {
-            const pos =
-                clampPosition(
-                    panel,
-                    initialPosition.left,
-                    initialPosition.top
-                );
-
-            panel.style.left =
-                `${pos.left}px`;
-
-            panel.style.top =
-                `${pos.top}px`;
-
-            panel.style.right =
-                'auto';
-
-            panel.style.bottom =
-                'auto';
+            applyPosition(
+                panel,
+                initialPosition.left,
+                initialPosition.top
+            );
         } else {
             restorePosition(
                 panel,
@@ -2181,7 +2175,7 @@ ${missing.join('、')}
         };
 
         const dragHandle =
-            document.querySelector(
+            panel.querySelector(
                 '#daren-helper-drag-handle'
             );
 
@@ -2195,22 +2189,22 @@ ${missing.join('、')}
         });
 
 
-        document.querySelector(
+        panel.querySelector(
             '#daren-helper-collect'
         ).onclick =
             collectCurrentDaren;
 
-        document.querySelector(
+        panel.querySelector(
             '#daren-helper-view'
         ).onclick =
             showRecordsModal;
 
-        document.querySelector(
+        panel.querySelector(
             '#daren-helper-export'
         ).onclick =
             exportCSV;
 
-        document.querySelector(
+        panel.querySelector(
             '#daren-helper-clear'
         ).onclick =
             clearRecords;
@@ -2280,12 +2274,12 @@ ${missing.join('、')}
         }
 
         const rect = element.getBoundingClientRect();
-        const pos = clampPosition(element, rect.left, rect.top);
-
-        element.style.left = `${pos.left}px`;
-        element.style.top = `${pos.top}px`;
-        element.style.right = 'auto';
-        element.style.bottom = 'auto';
+        const pos =
+            applyPosition(
+                element,
+                rect.left,
+                rect.top
+            );
 
         savePosition(
             panel ? PANEL_POSITION_KEY : LAUNCHER_POSITION_KEY,
