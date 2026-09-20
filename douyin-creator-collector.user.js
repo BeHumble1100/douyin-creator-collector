@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7.1.1
+// @name         抖店达人采集助手 V7.2.1
 // @namespace    douyin-daren-helper
-// @version      7.1
+// @version      7.2
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
 // @match        *://buyin.jinritemai.com/*
 // @match        *://*.jinritemai.com/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7.1] 脚本开始执行');
+    console.log('[达人助手 V7.2] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
@@ -528,6 +528,11 @@
             ${row(
                 '结算总额',
                 currentResult.settlement
+            )}
+
+            ${row(
+                '主页链接',
+                currentResult.pageUrl
             )}
         `;
     }
@@ -1281,6 +1286,9 @@
             const level =
                 getLevel();
 
+            const pageUrl =
+                window.location.href;
+
             const douyinId =
                 await getDouyinId();
 
@@ -1304,7 +1312,8 @@
                 name,
                 douyinId,
                 level,
-                settlement
+                settlement,
+                pageUrl
             };
 
             renderCurrentResult();
@@ -1351,7 +1360,8 @@ ${missing.join('、')}
 达人名称：${name || '未识别'}
 抖音号：${douyinId || '未识别'}
 达人等级：${level || '未识别'}
-结算总额：${settlement || '未识别'}`
+结算总额：${settlement || '未识别'}
+主页链接：${pageUrl || '未识别'}`
                 );
 
                 return;
@@ -1362,6 +1372,7 @@ ${missing.join('、')}
                 douyinId,
                 level,
                 settlement,
+                pageUrl,
                 time:
                     new Date()
                         .toLocaleString()
@@ -1403,7 +1414,8 @@ ${missing.join('、')}
                     name,
                     douyinId,
                     level,
-                    settlement
+                    settlement,
+                    pageUrl
                 ].join('\t')
             );
 
@@ -1507,7 +1519,7 @@ ${missing.join('、')}
             tbody.innerHTML = `
                 <tr>
                     <td
-                        colspan="6"
+                        colspan="7"
                         style="
                             padding:30px;
                             text-align:center;
@@ -1532,6 +1544,13 @@ ${missing.join('、')}
                             <td>${escapeHtml(r.douyinId)}</td>
                             <td>${escapeHtml(r.level)}</td>
                             <td>${escapeHtml(r.settlement)}</td>
+                            <td>
+                                ${
+                                    r.pageUrl
+                                        ? `<a href="${escapeHtml(r.pageUrl)}" target="_blank" rel="noopener noreferrer">打开主页</a>`
+                                        : ''
+                                }
+                            </td>
                             <td>
                                 <button
                                     class="daren-delete-btn"
@@ -1653,6 +1672,7 @@ ${missing.join('、')}
                                 <th>抖音号</th>
                                 <th>达人等级</th>
                                 <th>结算总额</th>
+                                <th>主页链接</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -1747,7 +1767,8 @@ ${missing.join('、')}
                 '达人名称',
                 '抖音号',
                 '达人等级',
-                '结算总额'
+                '结算总额',
+                '主页链接'
             ],
 
             ...records.map(
@@ -1755,7 +1776,8 @@ ${missing.join('、')}
                     r.name,
                     r.douyinId,
                     r.level,
-                    r.settlement
+                    r.settlement,
+                    r.pageUrl || ''
                 ]
             )
         ];
@@ -2010,7 +2032,7 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7.1
+                    达人采集助手 V7.2
                 </div>
 
                 <button
