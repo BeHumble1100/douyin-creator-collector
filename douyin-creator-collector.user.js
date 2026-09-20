@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V4.2
+// @name         抖店达人采集助手 V4.3
 // @namespace    douyin-daren-helper
-// @version      4.2
+// @version      4.3
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
 // @match        https://buyin.jinritemai.com/*
 // @match        https://*.jinritemai.com/*
@@ -1554,7 +1554,7 @@ ${missing.join('、')}
     font-size:15px;
     margin-bottom:7px;
 ">
-达人采集助手 V4.2
+达人采集助手 V4.3
 </div>
 
 <div
@@ -1734,60 +1734,95 @@ ${missing.join('、')}
     // =========================================================
 
     let lastDetailSeenAt = 0;
+    let forceShowPanel = false;
 
 
-    function isDarenDetailPage() {
-
-        const hasQr =
-            !!document.querySelector(
-                '.dp__icon-qrcode'
-            );
-
-        const hasLevel =
-            !!document.querySelector(
-                'img[data-author-level]'
-            );
+    function getDetailSignals() {
 
         const bodyText =
             document.body?.innerText || '';
 
-        const hasDouyinHomeText =
-            bodyText.includes(
-                '达人抖音主页'
-            );
-
-        const hasDetailTabs =
-            bodyText.includes(
-                '带货分析'
-            ) &&
+        const url =
             (
+                location.pathname +
+                location.search +
+                location.hash
+            ).toLowerCase();
+
+        return {
+
+            // 已确认的强特征
+            qr:
+                !!document.querySelector(
+                    '.dp__icon-qrcode'
+                ),
+
+            level:
+                !!document.querySelector(
+                    'img[data-author-level]'
+                ),
+
+            douyinHome:
+                bodyText.includes(
+                    '达人抖音主页'
+                ),
+
+            // 详情页常见 Tab
+            salesTab:
+                bodyText.includes(
+                    '带货分析'
+                ),
+
+            fansTab:
                 bodyText.includes(
                     '粉丝分析'
-                ) ||
+                ),
+
+            sceneTab:
                 bodyText.includes(
                     '场景分析'
-                ) ||
+                ),
+
+            reviewTab:
                 bodyText.includes(
                     '评价详情'
-                )
-            );
+                ),
+
+            // 详情页上一般会有粉丝信息
+            followers:
+                /(?:\d+(?:\.\d+)?)(?:万|w)?\s*粉丝/i
+                    .test(bodyText),
+
+            // URL 兜底：只要路径里像达人 / author / creator / talent / kol
+            urlLooksLikeCreator:
+                /author|creator|talent|daren|kol|达人/i
+                    .test(url)
+        };
+    }
+
+
+    function isDarenDetailPage() {
+
+        const s =
+            getDetailSignals();
 
         /*
-         * V4.1 的问题：
-         * 必须二维码节点 + 等级节点同时存在才显示。
-         * 抖店异步渲染时两者未必会同时出现。
+         * V4.3 原则：
+         * 宁可误显示，也不能漏掉真正的达人详情页。
          *
-         * V4.2 改成“多特征命中”：
-         * - 二维码存在：强特征
-         * - 等级图片存在：强特征
-         * - “达人抖音主页” + 详情 Tab：文本组合特征
+         * 任意一个“详情页特征”命中，就视为详情页。
          */
         const isDetail =
-            hasQr ||
-            hasLevel ||
             (
-                hasDouyinHomeText &&
-                hasDetailTabs
+                s.qr ||
+                s.level ||
+                s.douyinHome ||
+                s.salesTab ||
+                s.fansTab ||
+                s.sceneTab ||
+                s.reviewTab ||
+                s.followers ||
+                s.urlLooksLikeCreator
             );
 
         if (isDetail) {
@@ -1801,15 +1836,85 @@ ${missing.join('、')}
 
     function shouldKeepPanelTemporarily() {
 
-        /*
-         * 点击 Tab / React 重渲染时，
-         * DOM 可能短暂消失。
-         * 给 2.5 秒宽限，避免面板一闪就没。
-         */
+        // React / SPA 重渲染时给 5 秒宽限
         return (
             Date.now() -
             lastDetailSeenAt
-        ) < 2500;
+        ) < 5000;
+    }
+
+
+    function removeLauncher() {
+
+        const launcher =
+            document.querySelector(
+                '#daren-helper-launcher'
+            );
+
+        if (launcher) {
+            launcher.remove();
+        }
+    }
+
+
+    function createLauncher() {
+
+        if (
+            document.querySelector(
+                '#daren-helper-launcher'
+            ) ||
+            document.querySelector(
+                '#daren-helper-panel'
+            )
+        ) {
+            return;
+        }
+
+        const launcher =
+            document.createElement(
+                'button'
+            );
+
+        launcher.id =
+            'daren-helper-launcher';
+
+        launcher.innerText =
+            '达人助手';
+
+        Object.assign(
+            launcher.style,
+            {
+                position: 'fixed',
+                right: '18px',
+                bottom: '18px',
+                zIndex: '99999998',
+                padding: '7px 10px',
+                border: '1px solid #ddd',
+                borderRadius: '18px',
+                background: '#fff',
+                boxShadow: '0 3px 12px rgba(0,0,0,.14)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                opacity: '.78'
+            }
+        );
+
+        launcher.onclick = () => {
+
+            forceShowPanel = true;
+
+            launcher.remove();
+
+            createPanel();
+
+            setStatus(
+                '已手动强制显示'
+            );
+        };
+
+        document.body.appendChild(
+            launcher
+        );
     }
 
 
@@ -1824,12 +1929,15 @@ ${missing.join('、')}
             isDarenDetailPage();
 
         if (
+            forceShowPanel ||
             detailNow ||
             (
                 panel &&
                 shouldKeepPanelTemporarily()
             )
         ) {
+
+            removeLauncher();
 
             if (!panel) {
                 createPanel();
@@ -1850,13 +1958,24 @@ ${missing.join('、')}
         if (modal) {
             modal.remove();
         }
+
+        /*
+         * 自动判断没有命中时，不让脚本“彻底消失”。
+         * 仅显示一个很小的兜底按钮。
+         */
+        createLauncher();
     }
 
 
-    // 首次加载后检查
+    // 首次加载多次检查，兼容慢渲染
     setTimeout(
         syncPanel,
-        600
+        300
+    );
+
+    setTimeout(
+        syncPanel,
+        800
     );
 
     setTimeout(
@@ -1881,7 +2000,7 @@ ${missing.join('、')}
             window.__darenHelperSyncTimer =
                 setTimeout(
                     syncPanel,
-                    200
+                    150
                 );
         });
 
@@ -1895,12 +2014,11 @@ ${missing.join('、')}
     );
 
 
-    // 再加一层低频兜底。
-    // 即使某次 SPA 更新没有触发到我们关心的 Mutation，
-    // 最迟 1 秒也会重新判断一次。
+    // 每秒兜底一次
     setInterval(
         syncPanel,
         1000
     );
+
 
 })();
