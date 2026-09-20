@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V4
+// @name         抖店达人采集助手 V4.1
 // @namespace    douyin-daren-helper
-// @version      4.0
+// @version      4.1
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
 // @match        https://buyin.jinritemai.com/*
 // @match        https://*.jinritemai.com/*
@@ -11,10 +11,13 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'daren_collector_v4';
+    const STORAGE_KEY = 'daren_collector_v4_1';
 
     const sleep = ms =>
         new Promise(resolve => setTimeout(resolve, ms));
+
+    // 当前页面最近一次提取结果
+    let currentResult = null;
 
 
     // =========================================================
@@ -73,6 +76,57 @@
         if (el) {
             el.innerText = text;
         }
+    }
+
+
+    function renderCurrentResult(result = currentResult) {
+
+        const box =
+            document.querySelector(
+                '#daren-helper-current-result'
+            );
+
+        if (!box) {
+            return;
+        }
+
+        if (!result) {
+
+            box.innerHTML = `
+                <div style="color:#999;">
+                    尚未提取当前达人
+                </div>
+            `;
+
+            return;
+        }
+
+        const row = (label, value) => `
+            <div style="
+                display:grid;
+                grid-template-columns:66px 1fr;
+                gap:6px;
+                margin-top:4px;
+                align-items:start;
+            ">
+                <div style="color:#888;">
+                    ${escapeHtml(label)}
+                </div>
+                <div style="
+                    color:#222;
+                    word-break:break-all;
+                ">
+                    ${escapeHtml(value || '未识别')}
+                </div>
+            </div>
+        `;
+
+        box.innerHTML = `
+            ${row('达人名称', result.name)}
+            ${row('抖音号', result.douyinId)}
+            ${row('达人等级', result.level)}
+            ${row('结算总额', result.settlement)}
+        `;
     }
 
 
@@ -840,6 +894,15 @@
                 missing.length
             ) {
 
+                currentResult = {
+                    name,
+                    douyinId,
+                    level,
+                    settlement
+                };
+
+                renderCurrentResult();
+
                 setStatus(
                     '部分字段未识别'
                 );
@@ -903,6 +966,9 @@ ${missing.join('、')}
 
                 actionText = '已新增';
             }
+
+            currentResult = record;
+            renderCurrentResult();
 
             saveRecords(
                 records
@@ -1488,7 +1554,7 @@ ${missing.join('、')}
     font-size:15px;
     margin-bottom:7px;
 ">
-达人采集助手 V4
+达人采集助手 V4.1
 </div>
 
 <div
@@ -1523,6 +1589,32 @@ ${missing.join('、')}
 <button id="daren-helper-clear">
 清空数据
 </button>
+
+<div style="
+    margin-top:12px;
+    padding-top:10px;
+    border-top:1px solid #eee;
+">
+    <div style="
+        font-size:13px;
+        font-weight:700;
+        margin-bottom:5px;
+    ">
+        当前提取结果
+    </div>
+
+    <div
+        id="daren-helper-current-result"
+        style="
+            font-size:12px;
+            line-height:1.45;
+        "
+    >
+        <div style="color:#999;">
+            尚未提取当前达人
+        </div>
+    </div>
+</div>
 `;
 
         Object.assign(
@@ -1541,7 +1633,7 @@ ${missing.join('、')}
                     '99999999',
 
                 width:
-                    '180px',
+                    '230px',
 
                 padding:
                     '14px',
@@ -1627,16 +1719,95 @@ ${missing.join('、')}
             clearRecords;
 
         updatePanel();
+        renderCurrentResult();
     }
 
 
     // =========================================================
-    // 启动
+    // 12. 仅在达人详情页显示面板
+    //
+    // 使用已确认的真实 DOM 特征判断：
+    // .dp__icon-qrcode
+    // img[data-author-level]
+    //
+    // 抖店是 SPA，因此还要监听页面 DOM 变化。
     // =========================================================
 
+    function isDarenDetailPage() {
+
+        return !!(
+            document.querySelector(
+                '.dp__icon-qrcode'
+            ) &&
+            document.querySelector(
+                'img[data-author-level]'
+            )
+        );
+    }
+
+
+    function syncPanel() {
+
+        const panel =
+            document.querySelector(
+                '#daren-helper-panel'
+            );
+
+        if (
+            isDarenDetailPage()
+        ) {
+
+            if (!panel) {
+                createPanel();
+            }
+
+            return;
+        }
+
+        if (panel) {
+            panel.remove();
+        }
+
+        const modal =
+            document.querySelector(
+                '#daren-records-modal'
+            );
+
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+
+    // 首次加载后检查
     setTimeout(
-        createPanel,
+        syncPanel,
         1200
+    );
+
+
+    // SPA 页面切换时自动检查
+    const observer =
+        new MutationObserver(() => {
+
+            clearTimeout(
+                window.__darenHelperSyncTimer
+            );
+
+            window.__darenHelperSyncTimer =
+                setTimeout(
+                    syncPanel,
+                    250
+                );
+        });
+
+
+    observer.observe(
+        document.body,
+        {
+            childList: true,
+            subtree: true
+        }
     );
 
 })();
