@@ -112,7 +112,7 @@ Run `node --test tests/script.test.cjs` to execute offline smoke tests. They exe
 
 ### Collector panel / 采集面板
 
-<img src="./assets/collector-panel.png" alt="Collector panel / 采集面板" width="360">
+<img src="./assets/collector-panel.png" alt="Collector panel / 采集面板" width="720">
 
 ### Sanitized records table / 已脱敏记录表
 
