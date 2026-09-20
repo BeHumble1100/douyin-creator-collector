@@ -1,10 +1,12 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V4.4
+// @name         抖店达人采集助手 V4.5
 // @namespace    douyin-daren-helper
-// @version      4.4
+// @version      4.5
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
-// @match        https://buyin.jinritemai.com/*
-// @match        https://*.jinritemai.com/*
+// @match        *://buyin.jinritemai.com/*
+// @match        *://*.jinritemai.com/*
+// @include      *://buyin.jinritemai.com/*
+// @include      *://*.jinritemai.com/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // ==/UserScript==
@@ -1561,7 +1563,7 @@ ${missing.join('、')}
         font-weight:700;
         font-size:15px;
     ">
-        达人采集助手 V4.4
+        达人采集助手 V4.5
     </div>
 
     <button
@@ -1655,7 +1657,7 @@ ${missing.join('、')}
                     '20px',
 
                 zIndex:
-                    '99999999',
+                    '2147483647',
 
                 width:
                     '230px',
@@ -1840,8 +1842,13 @@ ${missing.join('、')}
             return;
         }
 
+        document.documentElement.setAttribute(
+            'data-daren-helper-loaded',
+            '4.5'
+        );
+
         console.log(
-            '[达人助手] V4.4 已加载：',
+            '[达人助手] V4.5 已加载：',
             location.href
         );
 
@@ -1915,5 +1922,44 @@ ${missing.join('、')}
         2000
     );
 
+
+
+    // 前 10 秒额外高频自愈，避免页面初始重渲染把面板吃掉。
+    let bootRetryCount = 0;
+
+    const bootRetryTimer =
+        setInterval(
+            () => {
+
+                bootRetryCount++;
+
+                if (document.body) {
+
+                    const hasPanel =
+                        !!document.querySelector(
+                            '#daren-helper-panel'
+                        );
+
+                    const hasLauncher =
+                        !!document.querySelector(
+                            '#daren-helper-launcher'
+                        );
+
+                    if (
+                        !hasPanel &&
+                        !hasLauncher
+                    ) {
+                        createPanel();
+                    }
+                }
+
+                if (bootRetryCount >= 20) {
+                    clearInterval(
+                        bootRetryTimer
+                    );
+                }
+            },
+            500
+        );
 
 })();
