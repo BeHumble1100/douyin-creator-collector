@@ -1,0 +1,23 @@
+# Local exports and potentially sensitive account/creator data
+*.csv
+*.xlsx
+*.xls
+*.har
+*.log
+*.zip
+*.7z
+*.bak
+.env
+.env.*
+!/.env.example
+
+# Local tooling / editor
+node_modules/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Avoid accidentally publishing screenshots; add only explicitly redacted demo images
+screenshots/
+assets/screenshots/

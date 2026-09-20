@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7.5
+// @name         抖店达人采集助手 | Douyin Creator Collector
 // @namespace    douyin-daren-helper
-// @version      7.5
-// @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
+// @version      1.0.0
+// @description  达人广场资料采集、去重存储、可拖动面板与 CSV 导出
 // @match        https://buyin.jinritemai.com/*
 // @match        http://buyin.jinritemai.com/*
 // @grant        GM_setClipboard
@@ -12,7 +12,7 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7.5] 脚本开始执行');
+    console.log('[达人助手 v1.0.0] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
@@ -2018,7 +2018,7 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7.5
+                    达人采集助手
                 </div>
 
                 <button id="daren-helper-collapse" type="button">
