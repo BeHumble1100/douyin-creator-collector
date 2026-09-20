@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V4.1
+// @name         抖店达人采集助手 V4.2
 // @namespace    douyin-daren-helper
-// @version      4.1
+// @version      4.2
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，并支持查看/删除/导出
 // @match        https://buyin.jinritemai.com/*
 // @match        https://*.jinritemai.com/*
@@ -1554,7 +1554,7 @@ ${missing.join('、')}
     font-size:15px;
     margin-bottom:7px;
 ">
-达人采集助手 V4.1
+达人采集助手 V4.2
 </div>
 
 <div
@@ -1733,16 +1733,83 @@ ${missing.join('、')}
     // 抖店是 SPA，因此还要监听页面 DOM 变化。
     // =========================================================
 
+    let lastDetailSeenAt = 0;
+
+
     function isDarenDetailPage() {
 
-        return !!(
-            document.querySelector(
+        const hasQr =
+            !!document.querySelector(
                 '.dp__icon-qrcode'
-            ) &&
-            document.querySelector(
+            );
+
+        const hasLevel =
+            !!document.querySelector(
                 'img[data-author-level]'
-            )
-        );
+            );
+
+        const bodyText =
+            document.body?.innerText || '';
+
+        const hasDouyinHomeText =
+            bodyText.includes(
+                '达人抖音主页'
+            );
+
+        const hasDetailTabs =
+            bodyText.includes(
+                '带货分析'
+            ) &&
+            (
+                bodyText.includes(
+                    '粉丝分析'
+                ) ||
+                bodyText.includes(
+                    '场景分析'
+                ) ||
+                bodyText.includes(
+                    '评价详情'
+                )
+            );
+
+        /*
+         * V4.1 的问题：
+         * 必须二维码节点 + 等级节点同时存在才显示。
+         * 抖店异步渲染时两者未必会同时出现。
+         *
+         * V4.2 改成“多特征命中”：
+         * - 二维码存在：强特征
+         * - 等级图片存在：强特征
+         * - “达人抖音主页” + 详情 Tab：文本组合特征
+         */
+        const isDetail =
+            hasQr ||
+            hasLevel ||
+            (
+                hasDouyinHomeText &&
+                hasDetailTabs
+            );
+
+        if (isDetail) {
+            lastDetailSeenAt =
+                Date.now();
+        }
+
+        return isDetail;
+    }
+
+
+    function shouldKeepPanelTemporarily() {
+
+        /*
+         * 点击 Tab / React 重渲染时，
+         * DOM 可能短暂消失。
+         * 给 2.5 秒宽限，避免面板一闪就没。
+         */
+        return (
+            Date.now() -
+            lastDetailSeenAt
+        ) < 2500;
     }
 
 
@@ -1753,8 +1820,15 @@ ${missing.join('、')}
                 '#daren-helper-panel'
             );
 
+        const detailNow =
+            isDarenDetailPage();
+
         if (
-            isDarenDetailPage()
+            detailNow ||
+            (
+                panel &&
+                shouldKeepPanelTemporarily()
+            )
         ) {
 
             if (!panel) {
@@ -1782,7 +1856,17 @@ ${missing.join('、')}
     // 首次加载后检查
     setTimeout(
         syncPanel,
-        1200
+        600
+    );
+
+    setTimeout(
+        syncPanel,
+        1500
+    );
+
+    setTimeout(
+        syncPanel,
+        3000
     );
 
 
@@ -1797,7 +1881,7 @@ ${missing.join('、')}
             window.__darenHelperSyncTimer =
                 setTimeout(
                     syncPanel,
-                    250
+                    200
                 );
         });
 
@@ -1808,6 +1892,15 @@ ${missing.join('、')}
             childList: true,
             subtree: true
         }
+    );
+
+
+    // 再加一层低频兜底。
+    // 即使某次 SPA 更新没有触发到我们关心的 Mutation，
+    // 最迟 1 秒也会重新判断一次。
+    setInterval(
+        syncPanel,
+        1000
     );
 
 })();
