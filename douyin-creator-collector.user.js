@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7.4
+// @name         抖店达人采集助手 V7.5
 // @namespace    douyin-daren-helper
-// @version      7.4
+// @version      7.5
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
 // @match        https://buyin.jinritemai.com/*
 // @match        http://buyin.jinritemai.com/*
@@ -12,10 +12,11 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7.4] 脚本开始执行');
+    console.log('[达人助手 V7.5] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
+    const LAUNCHER_POSITION_KEY = 'daren_helper_launcher_position_v7';
     const OLD_STORAGE_KEYS = [
         'daren_collector_v6_final',
         'daren_collector_v6',
@@ -28,6 +29,7 @@
         new Promise(resolve => setTimeout(resolve, ms));
 
     let currentResult = null;
+    let isCollapsed = false;
 
 
     // =========================================================
@@ -1913,6 +1915,69 @@ ${missing.join('、')}
     }
 
 
+    function createLauncher(initialPosition = null) {
+        if (!document.body || !isDarenPage()) {
+            return;
+        }
+
+        if (
+            document.querySelector('#daren-helper-launcher') ||
+            document.querySelector('#daren-helper-panel')
+        ) {
+            return;
+        }
+
+        const button = document.createElement('button');
+        button.id = 'daren-helper-launcher';
+        button.textContent = '达人助手';
+
+        Object.assign(button.style, {
+            position: 'fixed',
+            right: '18px',
+            bottom: '18px',
+            zIndex: '2147483647',
+            padding: '9px 13px',
+            border: '1px solid #bbb',
+            borderRadius: '20px',
+            background: '#fff',
+            color: '#222',
+            boxShadow: '0 3px 14px rgba(0,0,0,.20)',
+            cursor: 'grab',
+            fontSize: '13px',
+            fontFamily: 'Arial, sans-serif',
+            userSelect: 'none'
+        });
+
+        document.body.appendChild(button);
+
+        if (initialPosition) {
+            const pos = clampPosition(
+                button,
+                initialPosition.left,
+                initialPosition.top
+            );
+            button.style.left = `${pos.left}px`;
+            button.style.top = `${pos.top}px`;
+            button.style.right = 'auto';
+            button.style.bottom = 'auto';
+        } else {
+            restorePosition(button, LAUNCHER_POSITION_KEY);
+        }
+
+        makeDraggable({
+            element: button,
+            handle: button,
+            storageKey: LAUNCHER_POSITION_KEY,
+            onClick: () => {
+                const rect = button.getBoundingClientRect();
+                isCollapsed = false;
+                button.remove();
+                createPanel({left: rect.left, top: rect.top});
+            }
+        });
+    }
+
+
     function createPanel(
         initialPosition = null
     ) {
@@ -1953,8 +2018,12 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7.4
+                    达人采集助手 V7.5
                 </div>
+
+                <button id="daren-helper-collapse" type="button">
+                    收起
+                </button>
 
             </div>
 
@@ -2093,6 +2162,24 @@ ${missing.join('、')}
                 );
             });
 
+        const collapseButton =
+            panel.querySelector('#daren-helper-collapse');
+
+        Object.assign(collapseButton.style, {
+            width: 'auto',
+            marginTop: '0',
+            padding: '3px 7px',
+            flexShrink: '0'
+        });
+
+        collapseButton.onclick = () => {
+            const rect = panel.getBoundingClientRect();
+            savePosition(PANEL_POSITION_KEY, rect.left, rect.top);
+            isCollapsed = true;
+            panel.remove();
+            createLauncher({left: rect.left, top: rect.top});
+        };
+
         const dragHandle =
             document.querySelector(
                 '#daren-helper-drag-handle'
@@ -2155,16 +2242,29 @@ ${missing.join('、')}
 
         const panel =
             document.querySelector('#daren-helper-panel');
+        const launcher =
+            document.querySelector('#daren-helper-launcher');
 
         if (!isDarenPage()) {
             panel?.remove();
+            launcher?.remove();
             document.querySelector('#daren-records-modal')?.remove();
             document.querySelector('#daren-helper-toast')?.remove();
+            // 重新进入达人广场/详情页时默认展开
+            isCollapsed = false;
             return;
         }
 
-        if (!panel) {
-            createPanel();
+        if (isCollapsed) {
+            panel?.remove();
+            if (!launcher) {
+                createLauncher();
+            }
+        } else {
+            launcher?.remove();
+            if (!panel) {
+                createPanel();
+            }
         }
     }
 
@@ -2172,19 +2272,26 @@ ${missing.join('、')}
         const panel =
             document.querySelector('#daren-helper-panel');
 
-        if (!panel) {
+        const launcher =
+            document.querySelector('#daren-helper-launcher');
+        const element = panel || launcher;
+        if (!element) {
             return;
         }
 
-        const rect = panel.getBoundingClientRect();
-        const pos = clampPosition(panel, rect.left, rect.top);
+        const rect = element.getBoundingClientRect();
+        const pos = clampPosition(element, rect.left, rect.top);
 
-        panel.style.left = `${pos.left}px`;
-        panel.style.top = `${pos.top}px`;
-        panel.style.right = 'auto';
-        panel.style.bottom = 'auto';
+        element.style.left = `${pos.left}px`;
+        element.style.top = `${pos.top}px`;
+        element.style.right = 'auto';
+        element.style.bottom = 'auto';
 
-        savePosition(PANEL_POSITION_KEY, pos.left, pos.top);
+        savePosition(
+            panel ? PANEL_POSITION_KEY : LAUNCHER_POSITION_KEY,
+            pos.left,
+            pos.top
+        );
     });
 
     if (document.readyState === 'loading') {
