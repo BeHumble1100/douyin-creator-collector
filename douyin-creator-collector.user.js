@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7
+// @name         抖店达人采集助手 V7.1.1
 // @namespace    douyin-daren-helper
-// @version      7.0
+// @version      7.1
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
 // @match        *://buyin.jinritemai.com/*
 // @match        *://*.jinritemai.com/*
@@ -14,7 +14,7 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7] 脚本开始执行');
+    console.log('[达人助手 V7.1] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
@@ -2010,7 +2010,7 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7
+                    达人采集助手 V7.1
                 </div>
 
                 <button
@@ -2325,7 +2325,8 @@ ${missing.join('、')}
             return;
         }
 
-        createPanel();
+        // 默认只显示缩略按钮，点击后再展开完整面板
+        createLauncher();
     }
 
 
