@@ -1,12 +1,10 @@
 // ==UserScript==
-// @name         抖店达人采集助手 V7.3.1
+// @name         抖店达人采集助手 V7.4
 // @namespace    douyin-daren-helper
-// @version      7.3
+// @version      7.4
 // @description  批量采集达人名称、抖音号、达人等级、结算总额，支持拖动、查看、删除、导出
-// @match        *://buyin.jinritemai.com/*
-// @match        *://*.jinritemai.com/*
-// @include      *://buyin.jinritemai.com/*
-// @include      *://*.jinritemai.com/*
+// @match        https://buyin.jinritemai.com/*
+// @match        http://buyin.jinritemai.com/*
 // @grant        GM_setClipboard
 // @run-at       document-idle
 // ==/UserScript==
@@ -14,11 +12,10 @@
 (function () {
     'use strict';
 
-    console.log('[达人助手 V7.3] 脚本开始执行');
+    console.log('[达人助手 V7.4] 脚本开始执行');
 
     const STORAGE_KEY = 'daren_collector_v7';
     const PANEL_POSITION_KEY = 'daren_helper_panel_position_v7';
-    const LAUNCHER_POSITION_KEY = 'daren_helper_launcher_position_v7';
     const OLD_STORAGE_KEYS = [
         'daren_collector_v6_final',
         'daren_collector_v6',
@@ -44,7 +41,7 @@
                     localStorage.getItem(STORAGE_KEY)
                 ) || [];
 
-            if (current.length) {
+            if (Array.isArray(current) && localStorage.getItem(STORAGE_KEY) !== null) {
                 return current;
             }
 
@@ -1285,6 +1282,12 @@
     // =========================================================
 
     async function collectCurrentDaren() {
+        if (normalizedPath() !== '/dashboard/servicehall/daren-profile') {
+            setStatus('请先进入达人详情页，再点击采集');
+            showToast('请先点进一位达人的详情页后采集');
+            return;
+        }
+
         const button =
             document.querySelector(
                 '#daren-helper-collect'
@@ -1879,11 +1882,7 @@ ${missing.join('、')}
             return;
         }
 
-        localStorage.removeItem(
-            STORAGE_KEY
-        );
-
-        updateCount();
+        saveRecords([]);
 
         if (
             document.querySelector(
@@ -1914,107 +1913,10 @@ ${missing.join('、')}
     }
 
 
-    function createLauncher(
-        initialPosition = null
-    ) {
-        if (
-            !document.body ||
-            document.querySelector(
-                '#daren-helper-launcher'
-            ) ||
-            document.querySelector(
-                '#daren-helper-panel'
-            )
-        ) {
-            return;
-        }
-
-        const button =
-            document.createElement(
-                'button'
-            );
-
-        button.id =
-            'daren-helper-launcher';
-
-        button.innerText =
-            '达人助手';
-
-        Object.assign(
-            button.style,
-            {
-                position: 'fixed',
-                right: '18px',
-                bottom: '18px',
-                zIndex: '2147483647',
-                padding: '9px 13px',
-                border: '1px solid #bbb',
-                borderRadius: '20px',
-                background: '#fff',
-                color: '#222',
-                boxShadow: '0 3px 14px rgba(0,0,0,.20)',
-                cursor: 'grab',
-                fontSize: '13px',
-                userSelect: 'none'
-            }
-        );
-
-        document.body.appendChild(
-            button
-        );
-
-        if (initialPosition) {
-            const pos =
-                clampPosition(
-                    button,
-                    initialPosition.left,
-                    initialPosition.top
-                );
-
-            button.style.left =
-                `${pos.left}px`;
-
-            button.style.top =
-                `${pos.top}px`;
-
-            button.style.right =
-                'auto';
-
-            button.style.bottom =
-                'auto';
-        } else {
-            restorePosition(
-                button,
-                LAUNCHER_POSITION_KEY
-            );
-        }
-
-        makeDraggable({
-            element: button,
-            handle: button,
-            storageKey:
-                LAUNCHER_POSITION_KEY,
-
-            onClick:
-                () => {
-                    const rect =
-                        button.getBoundingClientRect();
-
-                    button.remove();
-
-                    createPanel({
-                        left: rect.left,
-                        top: rect.top
-                    });
-                }
-        });
-    }
-
-
     function createPanel(
         initialPosition = null
     ) {
-        if (!document.body) {
+        if (!document.body || !isDarenPage()) {
             return;
         }
 
@@ -2025,10 +1927,6 @@ ${missing.join('、')}
         ) {
             return;
         }
-
-        document.querySelector(
-            '#daren-helper-launcher'
-        )?.remove();
 
         const panel =
             document.createElement(
@@ -2055,19 +1953,9 @@ ${missing.join('、')}
                     font-weight:700;
                     font-size:15px;
                 ">
-                    达人采集助手 V7.3
+                    达人采集助手 V7.4
                 </div>
 
-                <button
-                    id="daren-helper-collapse"
-                    style="
-                        width:auto;
-                        margin:0;
-                        padding:3px 7px;
-                    "
-                >
-                    收起
-                </button>
             </div>
 
             <div
@@ -2205,16 +2093,6 @@ ${missing.join('、')}
                 );
             });
 
-        Object.assign(
-            document.querySelector(
-                '#daren-helper-collapse'
-            ).style,
-            {
-                width: 'auto',
-                marginTop: '0'
-            }
-        );
-
         const dragHandle =
             document.querySelector(
                 '#daren-helper-drag-handle'
@@ -2250,171 +2128,77 @@ ${missing.join('、')}
         ).onclick =
             clearRecords;
 
-        document.querySelector(
-            '#daren-helper-collapse'
-        ).onclick =
-            () => {
-                const rect =
-                    panel.getBoundingClientRect();
-
-                savePosition(
-                    PANEL_POSITION_KEY,
-                    rect.left,
-                    rect.top
-                );
-
-                panel.remove();
-
-                createLauncher({
-                    left: rect.left,
-                    top: rect.top
-                });
-            };
-
         updateCount();
         renderCurrentResult();
     }
 
 
     // =========================================================
-    // Resize 后保持控件在可视区域
+    // 只在达人广场和达人详情页显示完整面板
     // =========================================================
 
-    window.addEventListener(
-        'resize',
-        () => {
-            const panel =
-                document.querySelector(
-                    '#daren-helper-panel'
-                );
+    function normalizedPath() {
+        return window.location.pathname.replace(/\/+$/, '') || '/';
+    }
 
-            const launcher =
-                document.querySelector(
-                    '#daren-helper-launcher'
-                );
+    function isDarenPage() {
+        return (
+            normalizedPath() === '/dashboard/servicehall/daren-square' ||
+            normalizedPath() === '/dashboard/servicehall/daren-profile'
+        );
+    }
 
-            if (panel) {
-                const rect =
-                    panel.getBoundingClientRect();
-
-                const pos =
-                    clampPosition(
-                        panel,
-                        rect.left,
-                        rect.top
-                    );
-
-                panel.style.left =
-                    `${pos.left}px`;
-
-                panel.style.top =
-                    `${pos.top}px`;
-
-                panel.style.right =
-                    'auto';
-
-                panel.style.bottom =
-                    'auto';
-
-                savePosition(
-                    PANEL_POSITION_KEY,
-                    pos.left,
-                    pos.top
-                );
-            }
-
-            if (launcher) {
-                const rect =
-                    launcher.getBoundingClientRect();
-
-                const pos =
-                    clampPosition(
-                        launcher,
-                        rect.left,
-                        rect.top
-                    );
-
-                launcher.style.left =
-                    `${pos.left}px`;
-
-                launcher.style.top =
-                    `${pos.top}px`;
-
-                launcher.style.right =
-                    'auto';
-
-                launcher.style.bottom =
-                    'auto';
-
-                savePosition(
-                    LAUNCHER_POSITION_KEY,
-                    pos.left,
-                    pos.top
-                );
-            }
-        }
-    );
-
-
-    // =========================================================
-    // 启动
-    // =========================================================
-
-    function init() {
+    function syncPanelVisibility() {
         if (!document.body) {
-            setTimeout(
-                init,
-                200
-            );
-
             return;
         }
 
-        // 默认只显示缩略按钮，点击后再展开完整面板
-        createLauncher();
+        const panel =
+            document.querySelector('#daren-helper-panel');
+
+        if (!isDarenPage()) {
+            panel?.remove();
+            document.querySelector('#daren-records-modal')?.remove();
+            document.querySelector('#daren-helper-toast')?.remove();
+            return;
+        }
+
+        if (!panel) {
+            createPanel();
+        }
     }
 
+    window.addEventListener('resize', () => {
+        const panel =
+            document.querySelector('#daren-helper-panel');
 
-    if (
-        document.readyState ===
-        'loading'
-    ) {
+        if (!panel) {
+            return;
+        }
+
+        const rect = panel.getBoundingClientRect();
+        const pos = clampPosition(panel, rect.left, rect.top);
+
+        panel.style.left = `${pos.left}px`;
+        panel.style.top = `${pos.top}px`;
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+
+        savePosition(PANEL_POSITION_KEY, pos.left, pos.top);
+    });
+
+    if (document.readyState === 'loading') {
         document.addEventListener(
             'DOMContentLoaded',
-            init,
-            {
-                once: true
-            }
+            syncPanelVisibility,
+            { once: true }
         );
     } else {
-        init();
+        syncPanelVisibility();
     }
 
-
-    setInterval(
-        () => {
-            if (!document.body) {
-                return;
-            }
-
-            const panel =
-                document.querySelector(
-                    '#daren-helper-panel'
-                );
-
-            const launcher =
-                document.querySelector(
-                    '#daren-helper-launcher'
-                );
-
-            if (
-                !panel &&
-                !launcher
-            ) {
-                createLauncher();
-            }
-        },
-        1500
-    );
+    // 抖店是单页应用：地址可能改变但脚本不重新执行。
+    // 定期核对 pathname，切换到指定页面时自动展示，离开时移除。
+    setInterval(syncPanelVisibility, 500);
 
 })();
